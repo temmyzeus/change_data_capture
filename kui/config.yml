@@ -1,0 +1,9 @@
+# ======================================================
+# Kafka Clusters Configuration
+# Define all Kafka cluster-specific settings and related integrations.
+# ======================================================
+
+kafka:
+  clusters:
+    - name: cdc-kafka
+      bootstrap-servers: kafka-broker:9092
