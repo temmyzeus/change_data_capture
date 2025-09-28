@@ -10,20 +10,21 @@ services:
       - KAFKA_NODE_ID=1
       - KAFKA_LOG_DIR=/tmp/kafka-logs
       - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,PYTHONCLIENT://:29092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092,PYTHONCLIENT://localhost:29092
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PYTHONCLIENT:PLAINTEXT
       - KAFKA_NUM_PARTITIONS=3
       - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
-      # - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      # - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       # - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       # - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
       # - KAFKA_CONTROLLER_QUORUM_BOOTSTRAP_SERVERS=
     ports:
       - 9092:9092
       - 9093:9093
+      - 29092:29092
 
   kafbat-ui:
     image: ghcr.io/kafbat/kafka-ui:v1.3.0
@@ -38,3 +39,41 @@ services:
     volumes:
       - ./kui/config.yml:/etc/kafkaui/dynamic_config.yaml
       - ./kui/uploads:/etc/kafkaui/uploads
+
+  postgres:
+    image: postgres:14
+    hostname: postgres
+    environment:
+      - POSTGRES_USER=change_data_capture
+      - POSTGRES_PASSWORD=change_data_capture
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  kafka-connect-source:
+    image: confluentinc/cp-kafka-connect:7.3.0
+    hostname: kafka-connect-source
+    ports:
+      - "28082:28082"
+    # https://kafka.apache.org/documentation/#connectconfigs
+    # https://docs.confluent.io/platform/7.3/installation/docker/config-reference.html#kconnect-long-configuration
+    environment:
+      - CONNECT_BOOTSTRAP_SERVERS="kafka-broker:9092"
+      - CONNECT_GROUP_ID="connect-source-cluster"
+      - CONNECT_REST_PORT=28082
+      - CONNECT_CONFIG_STORAGE_TOPIC="connect-config"
+      - CONNECT_OFFSET_STORAGE_TOPIC="connect-offset"
+      - CONNECT_STATUS_STORAGE_TOPIC="connect-status"
+      - CONNECT_KEY_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+      - CONNECT_VALUE_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+      - CONNECT_REST_ADVERTISED_HOST_NAME="kafka-connect-source"
+      - CONNECT_PLUGIN_PATH=/usr/share/java,/kafka/connect
+    volumes:
+      - ./connect:/kafka/connect
+
+    # command: [ "/opt/kafka/bin/connect-standalone.sh", "/opt/kafka/config/connect-standalone.properties" ]
+
+volumes:
+  pgdata:
