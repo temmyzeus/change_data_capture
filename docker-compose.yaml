@@ -52,43 +52,28 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  kafka-connect:
-    hostname: kafka-connect
-    image: quay.io/debezium/connect:2.7.4.Final
+  kafka-connect-source:
+    image: confluentinc/cp-kafka-connect:7.3.0
+    hostname: kafka-connect-source
     ports:
-      - "8083:8083"
+      - "28082:28082"
     # https://kafka.apache.org/documentation/#connectconfigs
     # https://docs.confluent.io/platform/7.3/installation/docker/config-reference.html#kconnect-long-configuration
     environment:
-      BOOTSTRAP_SERVERS: "kafka-broker:9092"
-      GROUP_ID: "connect-source-cluster"
-      REST_PORT: "8083"
-      CONFIG_STORAGE_TOPIC: "_connect-configs"
-      OFFSET_STORAGE_TOPIC: "_connect-offsets"
-      STATUS_STORAGE_TOPIC: "_connect-status"
-      KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-      VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-      REST_ADVERTISED_HOST_NAME: "kafka-connect-source"
-      CONFIG_STORAGE_REPLICATION_FACTOR: "1"
-      OFFSET_STORAGE_REPLICATION_FACTOR: "1"
-      STATUS_STORAGE_REPLICATION_FACTOR: "1"
-      PLUGIN_DISCOVERY: "HYBRID_FAIL"
-      # PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components,/usr/share/confluent-hub-components/debezium-debezium-connector-postgresql/lib"
-    depends_on:
-      - kafka-broker
+      - CONNECT_BOOTSTRAP_SERVERS="kafka-broker:9092"
+      - CONNECT_GROUP_ID="connect-source-cluster"
+      - CONNECT_REST_PORT=28082
+      - CONNECT_CONFIG_STORAGE_TOPIC="connect-config"
+      - CONNECT_OFFSET_STORAGE_TOPIC="connect-offset"
+      - CONNECT_STATUS_STORAGE_TOPIC="connect-status"
+      - CONNECT_KEY_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+      - CONNECT_VALUE_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+      - CONNECT_REST_ADVERTISED_HOST_NAME="kafka-connect-source"
+      - CONNECT_PLUGIN_PATH=/usr/share/java,/kafka/connect
     volumes:
-      - ./connect/plugins:/kafka/connect/plugins
+      - ./connect:/kafka/connect
 
-  create-kafka-connectors:
-    image: curlimages/curl:8.16.0
-    command: [ "sh", "/home/curl_user/kafka-connect/create-connectors.sh", "/home/curl_user/kafka-connectors" ]
-    volumes:
-      - ./connect:/home/curl_user/kafka-connect
-      - ./connectors:/home/curl_user/kafka-connectors
-    depends_on:
-      - kafka-broker
-      - kafka-connect
-      - kafbat-ui
+    # command: [ "/opt/kafka/bin/connect-standalone.sh", "/opt/kafka/config/connect-standalone.properties" ]
 
 volumes:
   pgdata:
